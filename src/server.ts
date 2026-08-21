@@ -62,6 +62,55 @@ app.post("/api/todos", async (req, res) => {
     res.status(201).json(todo);
 });
 
+app.put("/api/todos/:id", async (req, res) => {
+    const id = Number(req.params.id);
+
+    const { heading, note, doDate, done } = req.body;
+
+    const existingTodo = await prisma.toDo.findUnique({
+        where: { id },
+    });
+
+    if (!existingTodo) {
+        return res.status(404).json({
+            message: `Uppgiften med ID ${id} hittades inte.`,
+        });
+    }
+
+    const todo = await prisma.toDo.update({
+        where: { id },
+        data: {
+            heading,
+            note,
+            doDate: new Date(doDate),
+            done,
+        },
+    });
+
+    res.json(todo);
+});
+
+app.delete("/api/todos/:id", async (req, res) => {
+    const id = Number(req.params.id);
+
+    const existingTodo = await prisma.toDo.findUnique({
+        where: { id },
+    });
+
+    if (!existingTodo) {
+        return res.status(404).json({
+            message: `Uppgiften med ID ${id} hittades inte.`,
+        });
+    }
+
+    await prisma.toDo.delete({
+        where: { id },
+    });
+
+    res.json({
+        message: `Uppgiften med ID ${id} har tagits bort.`,
+    });
+});
 
 app.listen(5163, () => {
   console.log("API kör på http://localhost:5163");
