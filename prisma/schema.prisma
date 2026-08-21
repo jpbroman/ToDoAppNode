@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ToDo {
+  id      Int      @id @default(autoincrement())
+  heading String
+  note    String
+  created DateTime
+  doDate  DateTime
+  done    Boolean  @default(false)
+}
+
+model User {
+  id           Int    @id @default(autoincrement())
+  username     String @unique
+  passwordHash String
+}
