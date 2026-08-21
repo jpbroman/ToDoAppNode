@@ -41,7 +41,10 @@ app.get(
   res.json(todos);
 });
 
-app.get("/api/todos/:id", async (req, res) => {
+app.get(
+    "/api/todos/:id",
+    authenticateToken,
+    async (req, res) => {
     const id = Number(req.params.id);
 
     const todo = await prisma.toDo.findUnique({
@@ -57,7 +60,10 @@ app.get("/api/todos/:id", async (req, res) => {
     res.json(todo);
 });
 
-app.post("/api/todos", async (req, res) => {
+app.post(
+    "/api/todos",
+    authenticateToken,
+    async (req, res) => {
     const { heading, note, doDate } = req.body;
 
     const todo = await prisma.toDo.create({
@@ -72,7 +78,10 @@ app.post("/api/todos", async (req, res) => {
     res.status(201).json(todo);
 });
 
-app.put("/api/todos/:id", async (req, res) => {
+app.put(
+    "/api/todos/:id",
+    authenticateToken,
+    async (req, res) => {
     const id = Number(req.params.id);
 
     const { heading, note, doDate, done } = req.body;
@@ -100,7 +109,10 @@ app.put("/api/todos/:id", async (req, res) => {
     res.json(todo);
 });
 
-app.delete("/api/todos/:id", async (req, res) => {
+app.delete(
+    "/api/todos/:id",
+    authenticateToken,
+    async (req, res) => {
     const id = Number(req.params.id);
 
     const existingTodo = await prisma.toDo.findUnique({
