@@ -9,12 +9,14 @@ async function main() {
       {
         heading: "Testa Node API",
         note: "Min första ToDo i Node.js",
+        created: new Date(),
         doDate: new Date("2026-08-21"),
         done: false
       },
       {
         heading: "Lära mig Express",
         note: "Bygga samma API som i ASP.NET Core",
+        created: new Date(),
         doDate: new Date("2026-08-22"),
         done: true
       }
