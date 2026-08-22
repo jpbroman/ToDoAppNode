@@ -3,6 +3,11 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
+import {
+    parseTodoId,
+    isNonEmptyString,
+    isValidDate,
+} from "./validation.js";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -94,9 +99,22 @@ app.get(
     authenticateToken,
     async (req: AuthRequest, res: Response) => {
         try {
-            const todoId = Number(req.params.id);
+            const rawId = req.params.id;
 
-            const todo = await prisma.toDo.findFirst({
+            if (typeof rawId !== "string") {
+                return res.status(400).json({
+                    message: "Ogiltigt ID.",
+                });
+            }
+
+            const todoId = parseTodoId(rawId);
+
+            if (todoId === null) {
+                return res.status(400).json({
+                    message: "ID måste vara ett positivt heltal.",
+                });
+            }
+           const todo = await prisma.toDo.findFirst({
                 where: {
                     id: todoId,
                     userId: req.user!.id,
@@ -130,9 +148,21 @@ app.post(
         try {
             const { heading, note, doDate } = req.body;
 
-            if (!heading || !note || !doDate) {
+            if (!isNonEmptyString(heading)) {
                 return res.status(400).json({
-                    message: "heading, note och doDate krävs.",
+                    message: "heading måste vara en text som inte är tom.",
+                });
+            }
+
+            if (!isNonEmptyString(note)) {
+                return res.status(400).json({
+                    message: "note måste vara en text som inte är tom.",
+                });
+            }
+
+            if (!isValidDate(doDate)) {
+                return res.status(400).json({
+                    message: "doDate måste vara ett giltigt datum.",
                 });
             }
 
@@ -166,8 +196,47 @@ app.put(
     authenticateToken,
     async (req: AuthRequest, res: Response) => {
         try {
-            const todoId = Number(req.params.id);
+            const rawId = req.params.id;
+
+            if (typeof rawId !== "string") {
+                return res.status(400).json({
+                    message: "Ogiltigt ID.",
+                });
+            }
+
+            const todoId = parseTodoId(rawId);
+
+            if (todoId === null) {
+                return res.status(400).json({
+                    message: "ID måste vara ett positivt heltal.",
+                });
+            }
+
             const { heading, note, doDate, done } = req.body;
+
+            if (!isNonEmptyString(heading)) {
+                return res.status(400).json({
+                    message: "heading måste vara en text som inte är tom.",
+                });
+            }
+
+            if (!isNonEmptyString(note)) {
+                return res.status(400).json({
+                    message: "note måste vara en text som inte är tom.",
+                });
+            }
+
+            if (!isValidDate(doDate)) {
+                return res.status(400).json({
+                    message: "doDate måste vara ett giltigt datum.",
+                });
+            }
+
+            if (typeof done !== "boolean") {
+                return res.status(400).json({
+                    message: "done måste vara true eller false.",
+                });
+            }
 
             const existingTodo = await prisma.toDo.findFirst({
                 where: {
@@ -213,7 +282,21 @@ app.delete(
     authenticateToken,
     async (req: AuthRequest, res: Response) => {
         try {
-            const todoId = Number(req.params.id);
+            const rawId = req.params.id;
+
+            if (typeof rawId !== "string") {
+                return res.status(400).json({
+                    message: "Ogiltigt ID.",
+                });
+            }
+
+            const todoId = parseTodoId(rawId);
+
+            if (todoId === null) {
+                return res.status(400).json({
+                    message: "ID måste vara ett positivt heltal.",
+                });
+            }
 
             const existingTodo = await prisma.toDo.findFirst({
                 where: {
