@@ -1,15 +1,25 @@
-import { errorHandler } from "./middleware/errorHandler.js";
-import express, { type Request, type Response, type NextFunction } from "express";
+import express, {
+    type Request,
+    type Response,
+    type NextFunction,
+} from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
+
 import {
-    parseTodoId,
-    isNonEmptyString,
-    isValidDate,
-} from "./validation.js";
+    authenticateToken,
+    type AuthenticatedRequest,
+} from "./middleware/authMiddleware.js";
+
+import {
+    validateTodoId,
+    type TodoIdRequest,
+} from "./middleware/validateTodoId.js";
 import { asyncHandler } from "./middleware/asyncHandler.js";
+import { isNonEmptyString, isValidDate, validateCredentials } from "./middleware/validation.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -17,51 +27,14 @@ const prisma = new PrismaClient();
 const PORT = 5163;
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
-app.use(cors());
-app.use(express.json());
-
-interface AuthRequest extends Request {
+type AuthRequest = Request & {
     user?: {
         id: number;
-        username: string;
     };
-}
+};
 
-function authenticateToken(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction
-) {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.split(" ")[1];
-
-    if (!token) {
-        return res.status(401).json({
-            message: "Ingen token skickades.",
-        });
-    }
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET, {
-            audience: "ToDoWeb",
-            issuer: "ToDoAppNode",
-        }) as {
-            sub: string;
-            username: string;
-        };
-
-        req.user = {
-            id: Number(decoded.sub),
-            username: decoded.username,
-        };
-
-        next();
-    } catch {
-        return res.status(403).json({
-            message: "Ogiltig eller utgången token.",
-        });
-    }
-}
+app.use(cors());
+app.use(express.json());
 
 /*
  * GET /api/todos
@@ -91,33 +64,18 @@ app.get(
 app.get(
     "/api/todos/:id",
     authenticateToken,
-    asyncHandler(async (req: AuthRequest, res: Response) => {
-        const rawId = req.params.id;
-
-        if (typeof rawId !== "string") {
-            return res.status(400).json({
-                message: "Ogiltigt ID.",
-            });
-        }
-
-        const todoId = parseTodoId(rawId);
-
-        if (todoId === null) {
-            return res.status(400).json({
-                message: "ID måste vara ett positivt heltal.",
-            });
-        }
-
+    validateTodoId,
+    asyncHandler(async (req: TodoIdRequest, res: Response) => {
         const todo = await prisma.toDo.findFirst({
             where: {
-                id: todoId,
+                id: req.todoId!,
                 userId: req.user!.id,
             },
         });
 
         if (!todo) {
             return res.status(404).json({
-                message: `Uppgiften med ID ${todoId} hittades inte.`,
+                message: `Uppgiften med ID ${req.todoId} hittades inte.`,
             });
         }
 
@@ -173,23 +131,8 @@ app.post(
 app.put(
     "/api/todos/:id",
     authenticateToken,
-    asyncHandler(async (req: AuthRequest, res: Response) => {
-        const rawId = req.params.id;
-
-        if (typeof rawId !== "string") {
-            return res.status(400).json({
-                message: "Ogiltigt ID.",
-            });
-        }
-
-        const todoId = parseTodoId(rawId);
-
-        if (todoId === null) {
-            return res.status(400).json({
-                message: "ID måste vara ett positivt heltal.",
-            });
-        }
-
+    validateTodoId,
+    asyncHandler(async (req: TodoIdRequest, res: Response) => {
         const { heading, note, doDate, done } = req.body;
 
         if (!isNonEmptyString(heading)) {
@@ -218,20 +161,20 @@ app.put(
 
         const existingTodo = await prisma.toDo.findFirst({
             where: {
-                id: todoId,
+                id: req.todoId!,
                 userId: req.user!.id,
             },
         });
 
         if (!existingTodo) {
             return res.status(404).json({
-                message: `Uppgiften med ID ${todoId} hittades inte.`,
+                message: `Uppgiften med ID ${req.todoId} hittades inte.`,
             });
         }
 
         const todo = await prisma.toDo.update({
             where: {
-                id: todoId,
+                id: req.todoId!,
             },
             data: {
                 heading,
@@ -251,44 +194,29 @@ app.put(
 app.delete(
     "/api/todos/:id",
     authenticateToken,
-    asyncHandler(async (req: AuthRequest, res: Response) => {
-        const rawId = req.params.id;
-
-        if (typeof rawId !== "string") {
-            return res.status(400).json({
-                message: "Ogiltigt ID.",
-            });
-        }
-
-        const todoId = parseTodoId(rawId);
-
-        if (todoId === null) {
-            return res.status(400).json({
-                message: "ID måste vara ett positivt heltal.",
-            });
-        }
-
+    validateTodoId,
+    asyncHandler(async (req: TodoIdRequest, res: Response) => {
         const existingTodo = await prisma.toDo.findFirst({
             where: {
-                id: todoId,
+                id: req.todoId!,
                 userId: req.user!.id,
             },
         });
 
         if (!existingTodo) {
             return res.status(404).json({
-                message: `Uppgiften med ID ${todoId} hittades inte.`,
+                message: `Uppgiften med ID ${req.todoId} hittades inte.`,
             });
         }
 
         await prisma.toDo.delete({
             where: {
-                id: todoId,
+                id: req.todoId!,
             },
         });
 
         return res.json({
-            message: `Uppgiften med ID ${todoId} har tagits bort.`,
+            message: `Uppgiften med ID ${req.todoId} har tagits bort.`,
         });
     })
 );
@@ -301,15 +229,14 @@ app.post(
     asyncHandler(async (req: Request, res: Response) => {
         const { username, password } = req.body;
 
-        if (!isNonEmptyString(username)) {
-            return res.status(400).json({
-                message: "Användarnamn krävs.",
-            });
-        }
+        const validationError = validateCredentials(
+            username,
+            password
+        );
 
-        if (!isNonEmptyString(password)) {
+        if (validationError) {
             return res.status(400).json({
-                message: "Lösenord krävs.",
+                message: validationError,
             });
         }
 
@@ -321,11 +248,14 @@ app.post(
 
         if (existingUser) {
             return res.status(409).json({
-                message: "Användarnamnet är redan upptaget",
+                message: "Användarnamnet är redan upptaget.",
             });
         }
 
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(
+            password,
+            10
+        );
 
         const user = await prisma.user.create({
             data: {
@@ -335,7 +265,7 @@ app.post(
         });
 
         return res.status(201).json({
-            message: "Användaren är skapad",
+            message: "Användaren är skapad.",
             userId: user.id,
         });
     })
@@ -349,15 +279,14 @@ app.post(
     asyncHandler(async (req: Request, res: Response) => {
         const { username, password } = req.body;
 
-        if (!isNonEmptyString(username)) {
-            return res.status(400).json({
-                message: "Användarnamn krävs.",
-            });
-        }
+        const validationError = validateCredentials(
+            username,
+            password
+        );
 
-        if (!isNonEmptyString(password)) {
+        if (validationError) {
             return res.status(400).json({
-                message: "Lösenord krävs.",
+                message: validationError,
             });
         }
 
@@ -403,23 +332,13 @@ app.post(
     })
 );
 
+/*
+ * Central felhantering
+ *
+ * Måste ligga sist, efter alla routes.
+ */
 app.use(errorHandler);
-app.post(
-    "/api/auth/login",
-    async (req: Request, res: Response) => {
-        try {
-            // ...
-        } catch (error) {
-            console.error(error);
-
-            return res.status(500).json({
-                message: "Kunde inte logga in.",
-            });
-        }
-    }
-);
 
 app.listen(PORT, () => {
     console.log(`API kör på http://localhost:${PORT}`);
 });
-
