@@ -8,16 +8,21 @@ datasource db {
 }
 
 model ToDo {
-  id      Int      @id @default(autoincrement())
-  heading String
-  note    String
-  created DateTime
-  doDate  DateTime
-  done    Boolean  @default(false)
+  id        Int      @id @default(autoincrement())
+  heading   String
+  note      String
+  created   DateTime
+  doDate    DateTime
+  done      Boolean  @default(false)
+
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
   id           Int    @id @default(autoincrement())
   username     String @unique
   passwordHash String
+
+  todos        ToDo[]
 }
