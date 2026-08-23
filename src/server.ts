@@ -42,7 +42,7 @@ app.use(express.json());
  * Hämtar endast den inloggade användarens ToDos.
  */
 app.get(
-    "/api/todos",
+    "/api/ToDos",
     authenticateToken,
     asyncHandler(async (req: AuthRequest, res: Response) => {
         const todos = await prisma.toDo.findMany({
@@ -62,7 +62,7 @@ app.get(
  * GET /api/todos/:id
  */
 app.get(
-    "/api/todos/:id",
+    "/api/ToDos/:id",
     authenticateToken,
     validateTodoId,
     asyncHandler(async (req: TodoIdRequest, res: Response) => {
@@ -87,7 +87,7 @@ app.get(
  * POST /api/todos
  */
 app.post(
-    "/api/todos",
+    "/api/ToDos",
     authenticateToken,
     asyncHandler(async (req: AuthRequest, res: Response) => {
         const { heading, note, doDate } = req.body;
@@ -129,7 +129,7 @@ app.post(
  * PUT /api/todos/:id
  */
 app.put(
-    "/api/todos/:id",
+    "/api/ToDos/:id",
     authenticateToken,
     validateTodoId,
     asyncHandler(async (req: TodoIdRequest, res: Response) => {
@@ -192,7 +192,7 @@ app.put(
  * DELETE /api/todos/:id
  */
 app.delete(
-    "/api/todos/:id",
+    "/api/ToDos/:id",
     authenticateToken,
     validateTodoId,
     asyncHandler(async (req: TodoIdRequest, res: Response) => {
@@ -339,6 +339,4 @@ app.post(
  */
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-    console.log(`API kör på http://localhost:${PORT}`);
-});
+export default app;
