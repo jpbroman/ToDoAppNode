@@ -21,6 +21,15 @@ import { asyncHandler } from "./middleware/asyncHandler.js";
 import { isNonEmptyString, isValidDate, validateCredentials } from "./middleware/validation.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
+// Formaterar om datumfält till en ren sträng (YYYY-MM-DD)
+const formatTodoDates = (todo: any) => {
+    return {
+        ...todo,
+        created: todo.created ? todo.created.toISOString().split("T")[0] : undefined,
+        doDate: todo.doDate ? todo.doDate.toISOString().split("T")[0] : null,
+    };
+};
+
 const app = express();
 const prisma = new PrismaClient();
 
@@ -47,14 +56,17 @@ app.get(
     asyncHandler(async (req: AuthRequest, res: Response) => {
         const todos = await prisma.toDo.findMany({
             where: {
-                userId: req.user!.id,
+                user: {
+                    id: req.user!.id,
+                },
             },
             orderBy: {
                 doDate: "asc",
             },
         });
 
-        return res.json(todos);
+        // Formatera hela listan med .map()
+        return res.json(todos.map(formatTodoDates));
     })
 );
 
@@ -69,7 +81,9 @@ app.get(
         const todo = await prisma.toDo.findFirst({
             where: {
                 id: req.todoId!,
-                userId: req.user!.id,
+                user: {
+                    id: req.user!.id,
+                },
             },
         });
 
@@ -79,7 +93,7 @@ app.get(
             });
         }
 
-        return res.json(todo);
+        return res.json(formatTodoDates(todo));
     })
 );
 
@@ -117,11 +131,15 @@ app.post(
                 created: new Date(),
                 doDate: new Date(doDate),
                 done: false,
-                userId: req.user!.id,
+                user: {
+                    connect: {
+                        id: req.user!.id,
+                    },
+                },
             },
         });
 
-        return res.status(201).json(todo);
+        return res.status(201).json(formatTodoDates(todo));
     })
 );
 
@@ -162,7 +180,9 @@ app.put(
         const existingTodo = await prisma.toDo.findFirst({
             where: {
                 id: req.todoId!,
-                userId: req.user!.id,
+                user: {
+                    id: req.user!.id,
+                },
             },
         });
 
@@ -184,7 +204,7 @@ app.put(
             },
         });
 
-        return res.json(todo);
+        return res.json(formatTodoDates(todo));
     })
 );
 
@@ -199,7 +219,9 @@ app.delete(
         const existingTodo = await prisma.toDo.findFirst({
             where: {
                 id: req.todoId!,
-                userId: req.user!.id,
+                user: {
+                    id: req.user!.id,
+                },
             },
         });
 

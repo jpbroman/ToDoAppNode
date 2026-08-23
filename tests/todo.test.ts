@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
-import { mockPrismaClient, createMockToken } from "./setup";
-import app from "../src/server";
+import { mockPrismaClient, createMockToken } from "./setup.js";
+import app from "../src/server.js";
 
 describe("ToDo Endpoints", () => {
   const mockToken = createMockToken(1, "testuser");

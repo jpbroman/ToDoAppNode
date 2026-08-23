@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
-import { createMockToken } from "./setup";
-import app from "../src/server";
+import { createMockToken } from "./setup.js";
+import app from "../src/server.js";
 
 describe("Middleware Tests", () => {
   describe("authenticateToken", () => {
